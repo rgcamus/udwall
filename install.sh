@@ -41,9 +41,9 @@ fi
 REPO_URL="https://raw.githubusercontent.com/Hexmos/udwall/main"
 INSTALL_PATH="/usr/local/bin/udwall"
 
-# Download udwall.py directly to /usr/local/bin/udwall
-if ! curl -fsSL "$REPO_URL/udwall.py" -o "$INSTALL_PATH"; then
-    echo "❌ Error: Failed to download udwall.py from GitHub."
+# Download udwall directly to /usr/local/bin/udwall
+if ! curl -fsSL "$REPO_URL/udwall" -o "$INSTALL_PATH"; then
+    echo "❌ Error: Failed to download udwall from GitHub."
     echo "ℹ️  Please check your internet connection or if the repository/file exists."
     exit 1
 fi

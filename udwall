@@ -1228,13 +1228,9 @@ def main():
     logging.basicConfig(level=logging.INFO, handlers=[handler])
 
     parser = argparse.ArgumentParser(
-        description="A script to manage UFW and its integration with Docker.",
-        epilog="""
-This tool provides a safe and idempotent way to manage UFW, apply rules from a
-configuration file, and fix the common issue where Docker bypasses UFW.
-All operations require sudo privileges.
-""",
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        prog="udwall",
+        description="udwall: Declarative UFW + Docker firewall management.",
+        formatter_class=argparse.RawTextHelpFormatter
     )
     
     group = parser.add_mutually_exclusive_group()
