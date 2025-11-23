@@ -99,6 +99,29 @@ sudo udwall --backup
 
 This creates a timestamped backup in `/home/ubuntu/backup/firewall-backup/`, containing both iptables and UFW rules.
 
+### Define Rules
+
+Edit the configuration file at `/etc/udwall/udwall.conf`.
+
+```python
+# udwall.conf
+rules = [
+    # Allow SSH access from any source
+    {'from': 'any', 'connectionType': 'tcp', 'to': 'OpenSSH', 'isDockerServed': False, 'isEnabled': True},
+
+    # Allow HTTP and HTTPS traffic to the host
+    {'from': 'any', 'connectionType': 'tcp', 'to': 80, 'isDockerServed': False, 'isEnabled': True},
+    {'from': 'any', 'connectionType': 'tcp', 'to': 443, 'isDockerServed': False, 'isEnabled': True},
+
+    # Allow traffic to a Docker container on port 8080 from a specific IP
+    {'from': '192.168.1.100', 'connectionType': 'tcp', 'to': 8080, 'isDockerServed': True, 'isEnabled': True},
+
+    # Allow a UDP port range for an application like Mosh
+    {'from': 'any', 'connectionType': 'udp', 'to': '60000:61000', 'isDockerServed': False, 'isEnabled': True},
+]
+```
+
+
 ### Apply the Configuration
 
 This will back up your current state, remove undefined rules, and apply the new ones based on the configuration file.
@@ -123,27 +146,7 @@ This removes the `iptables` rules and custom chains, effectively disabling the D
 sudo udwall --disable
 ```
 
-### Define Rules
 
-Edit the configuration file at `/etc/udwall/udwall.conf`.
-
-```python
-# udwall.conf
-rules = [
-    # Allow SSH access from any source
-    {'from': 'any', 'connectionType': 'tcp', 'to': 'OpenSSH', 'isDockerServed': False, 'isEnabled': True},
-
-    # Allow HTTP and HTTPS traffic to the host
-    {'from': 'any', 'connectionType': 'tcp', 'to': 80, 'isDockerServed': False, 'isEnabled': True},
-    {'from': 'any', 'connectionType': 'tcp', 'to': 443, 'isDockerServed': False, 'isEnabled': True},
-
-    # Allow traffic to a Docker container on port 8080 from a specific IP
-    {'from': '192.168.1.100', 'connectionType': 'tcp', 'to': 8080, 'isDockerServed': True, 'isEnabled': True},
-
-    # Allow a UDP port range for an application like Mosh
-    {'from': 'any', 'connectionType': 'udp', 'to': '60000:61000', 'isDockerServed': False, 'isEnabled': True},
-]
-```
 ### Commands
 
 | Command | Description |
