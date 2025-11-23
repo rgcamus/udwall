@@ -1,5 +1,3 @@
-# udwall
-
 # UFW Firewall Management Script (`f.py`)
 
 ## 1. What It Does
@@ -19,7 +17,20 @@ Its primary purpose is to solve a critical security flaw where **Docker containe
 
 
 
-## 2. How to Use
+## 2. Installation
+
+You can install `udwall` with a single command:
+
+```bash
+curl -s https://raw.githubusercontent.com/Hexmos/udwall/main/install.sh | sudo bash
+```
+
+This script will:
+- Check for dependencies (`python3`, `ufw`, `curl`).
+- Download `udwall` to `/usr/local/bin/udwall`.
+- Set up a default configuration at `/etc/udwall/udwall.conf`.
+
+## 3. How to Use
 
 The script must be run with `sudo` privileges as it directly manipulates system firewall settings.
 
@@ -49,7 +60,7 @@ sudo python3 f.py <command>
     ```
 
 
-## 3\. Command Options Explained
+## 4\. Command Options Explained
 
 All commands are mutually exclusive (you can only run one at a time).
 
@@ -66,7 +77,7 @@ All commands are mutually exclusive (you can only run one at a time).
 
 -----
 
-## 4\. The `firewall.conf` File
+## 5\. The `firewall.conf` File
 
 This file defines the list of firewall rules you want to manage. The script expects it to be in the same directory and to contain a Python list named `rules`.
 
@@ -101,7 +112,7 @@ rules = [
 
 
 
-## 5\. Detailed Explanation of Command Options
+## 6\. Detailed Explanation of Command Options
 
 ### 1\. `--backup`
 
@@ -205,7 +216,7 @@ rules = [
 
 
 
-## 6\. Technical Notes
+## 7\. Technical Notes
 
   * **Constants:** The script relies on `/etc/ufw/after.rules`. Ensure your UFW installation uses standard paths.
   * **Logging:** The Docker rules inserted by this script include a logging directive. Blocked packets targeting Docker containers will be logged with the prefix `[UFW DOCKER BLOCK]`.

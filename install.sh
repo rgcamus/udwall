@@ -42,10 +42,9 @@ REPO_URL="https://raw.githubusercontent.com/Hexmos/udwall/main"
 INSTALL_PATH="/usr/local/bin/udwall"
 
 # Download udwall.py directly to /usr/local/bin/udwall
-curl -sSL "$REPO_URL/udwall.py" -o "$INSTALL_PATH"
-
-if [ $? -ne 0 ]; then
-    echo "❌ Error downloading udwall.py"
+if ! curl -fsSL "$REPO_URL/udwall.py" -o "$INSTALL_PATH"; then
+    echo "❌ Error: Failed to download udwall.py from GitHub."
+    echo "ℹ️  Please check your internet connection or if the repository/file exists."
     exit 1
 fi
 
@@ -61,7 +60,9 @@ if [ ! -f "$CONFIG_FILE" ]; then
     echo "⚙️  Setting up default configuration at $CONFIG_FILE"
     mkdir -p "$CONFIG_DIR"
     # Download default config
-    curl -sSL "$REPO_URL/udwall.conf" -o "$CONFIG_FILE"
+    if ! curl -fsSL "$REPO_URL/udwall.conf" -o "$CONFIG_FILE"; then
+         echo "⚠️  Warning: Failed to download default config. You may need to create one manually."
+    fi
 else
     echo "⚠️  Configuration file already exists at $CONFIG_FILE. Skipping overwrite."
 fi
