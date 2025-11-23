@@ -109,7 +109,7 @@ sudo udwall --apply
 | Command | Description |
 | :--- | :--- |
 | `sudo udwall --dry-run` | Shows what rules would be applied without making changes. |
-| `sudo udwall --create` | Generates a `udwall.conf` from your current live rules. |
+| `sudo udwall --create` | Generates a `udwall.conf` at `/etc/udwall/udwall.conf` from your current live rules. |
 | `sudo udwall --backup` | Creates a timestamped backup in `/home/ubuntu/backup/`. |
 | `sudo udwall --status` | Shows the current UFW status. |
 | `sudo udwall --disable` | Removes Docker rules, cleans files, and disables UFW. |

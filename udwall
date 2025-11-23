@@ -1180,7 +1180,20 @@ def create_config_from_ufw():
 
     # --- 3. Write to udwall.conf ---
     logging.info("Merging parsed rules with built-in default safety rules...")
-    file_path = 'udwall.conf'
+    
+    # Enforce global configuration path
+    config_dir = '/etc/udwall'
+    file_path = os.path.join(config_dir, 'udwall.conf')
+    
+    # Ensure directory exists
+    if not os.path.exists(config_dir):
+        try:
+            os.makedirs(config_dir)
+            logging.info(f"Created configuration directory: {config_dir}")
+        except OSError as e:
+            logging.error(f"Error creating directory {config_dir}: {e}")
+            sys.exit(1)
+
     try:
         with open(file_path, 'w') as f:
             f.write("rules = [\n")
@@ -1190,7 +1203,7 @@ def create_config_from_ufw():
         logging.info(f"Successfully generated '{file_path}'.")
         logging.info(f"Total rules written: {len(final_rules)}")
         logging.info(f"File location: {os.path.abspath(file_path)}")
-    except Exception as e:
+    except IOError as e:
         logging.error(f"Error writing to {file_path}: {e}")
         sys.exit(1)
 
