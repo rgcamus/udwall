@@ -10,10 +10,12 @@ import re
 import logging
 import pwd
 
+import yaml
+
 __version__ = "0.0.5"
 
-UDWALL_CONF_FILE = "udwall.conf"
-UDWALL_SYSTEM_CONF_PATH = "/etc/udwall/udwall.conf"
+UDWALL_CONF_FILE = "udwall.yaml"
+UDWALL_SYSTEM_CONF_PATH = "/etc/udwall/udwall.yaml"
 UFW_CONFIG_DIR = "/etc/ufw"
 UFW_DEFAULT_CONFIG = "/etc/default/ufw"
 SYSTEM_BACKUP_DIR = "/backup"
@@ -171,7 +173,7 @@ def check_ufw_installed():
 
 def load_rules_from_file():
     """
-    Reads and parses the 'udwall.conf' file to load firewall rules.
+    Reads and parses the 'udwall.yaml' file to load firewall rules.
 
     This function searches for 'udwall.conf' in the following order:
     1. Current Working Directory
@@ -202,16 +204,15 @@ def load_rules_from_file():
     if not file_path:
         script_name = os.path.basename(sys.argv[0])
         # Use print to stderr for this specific, user-facing error message
-        print(f"❌ ERROR: udwall.conf not found.", file=sys.stderr)
+        print(f"❌ ERROR: udwall.yaml not found.", file=sys.stderr)
         print(f"Searched in: {', '.join(possible_paths)}", file=sys.stderr)
         print(f"ℹ️  INFO: You can create one from your current UFW rules by running `sudo {script_name} --create`", file=sys.stderr)
         sys.exit(1)
 
     try:
-        config_context = {}
         with open(file_path, "r") as f:
-            exec(f.read(), config_context)
-        return config_context['rules']
+            config = yaml.safe_load(f)
+        return config['rules']
     except Exception as e:
         logging.error(f"Error parsing {file_path}: {e}")
         sys.exit(1)
@@ -411,13 +412,13 @@ def generate_ufw_command(rule):
 
 def dry_run_rules():
     """
-    Loads rules from udwall.conf and prints the corresponding UFW commands.
+    Loads rules from udwall.yaml and prints the corresponding UFW commands.
 
     This function provides a "dry run" mode. It loads the rule set, generates
     the command for each rule using `generate_ufw_command`, and prints it to
     the console without executing it. This is useful for debugging and verification.
     """
-    logging.info("--- Loading udwall.conf ---")
+    logging.info("--- Loading udwall.yaml ---")
     rules = load_rules_from_file()
     logging.info(f"Found {len(rules)} rules to process.\n")
     logging.info("\n--- DRY RUN MODE: No changes will be made ---")
@@ -1236,10 +1237,7 @@ def create_config_from_ufw():
 
     try:
         with open(file_path, 'w') as f:
-            f.write("rules = [\n")
-            for rule in final_rules:
-                f.write(f"    {repr(rule)},\n") # Use repr() for correct string quoting
-            f.write("]\n")
+            yaml.dump({'rules': final_rules}, f, default_flow_style=False, sort_keys=False)
         logging.info(f"Successfully generated '{file_path}'.")
         logging.info(f"Total rules written: {len(final_rules)}")
         logging.info(f"File location: {os.path.abspath(file_path)}")
@@ -1258,7 +1256,8 @@ def main():
     # --- Setup Logging ---
 
     # --- Check for root privileges before anything else ---
-    if os.geteuid() != 0:
+    # Allow help, version, and dry-run without root
+    if os.geteuid() != 0 and not any(arg in sys.argv for arg in ['--help', '-h', '--version', '-v', '--dry-run']):
         script_name = os.path.basename(sys.argv[0])
         print(f"❌ ERROR: You need to be root to run this script", file=sys.stderr)
         print(f"ℹ️  INFO: Use `sudo {script_name} <command>`", file=sys.stderr)

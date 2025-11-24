@@ -1,0 +1,47 @@
+# udwall Configuration File
+#
+# This file defines the firewall rules to be applied by udwall.
+#
+# Fields:
+#   from:           Source IP address or 'any'.
+#   connectionType: Protocol, either 'tcp' or 'udp'.
+#   to:             Destination port (e.g., 80), range (e.g., '60000:61000'), or service name (e.g., 'OpenSSH').
+#   isDockerServed: Set to true if the service is running inside a Docker container and needs routing.
+#   isEnabled:      Set to true to allow the traffic, false to delete the allow rule.
+
+rules:
+  # Example: Allow UDP traffic on a port range
+  - from: 'any'
+    connectionType: 'udp'
+    to: '60000:61000'
+    isDockerServed: false
+    isEnabled: true
+
+  # Example: Allow SSH access
+  - from: 'any'
+    connectionType: 'tcp'
+    to: 'OpenSSH'
+    isDockerServed: false
+    isEnabled: true
+
+  # Example: Allow HTTP traffic
+  - from: 'any'
+    connectionType: 'tcp'
+    to: 80
+    isDockerServed: false
+    isEnabled: true
+
+  # Example: Allow HTTPS traffic
+  - from: 'any'
+    connectionType: 'tcp'
+    to: 443
+    isDockerServed: false
+    isEnabled: true
+
+  # Example: Allow SSH on port 22 explicitly
+  - from: 'any'
+    connectionType: 'tcp'
+    to: 22
+    isDockerServed: false
+    isEnabled: true
+

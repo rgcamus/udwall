@@ -10,10 +10,10 @@ if [ $# -gt 0 ] && [[ "$1" == --v* ]]; then
     VERSION="${1#--}"  # Remove leading --
 fi
 
-REPO_URL="https://raw.githubusercontent.com/HexmosTech/udwall/$VERSION"
+REPO_URL="https://raw.githubusercontent.com/rgcamus/udwall/$VERSION"
 INSTALL_PATH="/usr/local/bin/udwall"
 CONFIG_DIR="/etc/udwall"
-CONFIG_FILE="$CONFIG_DIR/udwall.conf"
+CONFIG_FILE="$CONFIG_DIR/udwall.yaml"
 
 check_root() {
     if [ "$EUID" -ne 0 ]; then
@@ -39,6 +39,20 @@ check_dependencies() {
         exit 1
     fi
     echo "✅ Dependencies found."
+    
+    # Check for PyYAML
+    if ! python3 -c "import yaml" &> /dev/null; then
+        echo "⚠️  Warning: PyYAML (python3-yaml) not found."
+        echo "ℹ️  Attempting to install it..."
+        if command -v apt-get &> /dev/null; then
+            apt-get update && apt-get install -y python3-yaml
+        elif command -v yum &> /dev/null; then
+             yum install -y python3-yaml
+        else
+             echo "❌ Error: Could not install python3-yaml automatically. Please install it manually."
+             exit 1
+        fi
+    fi
 }
 
 fetch_script() {
@@ -60,7 +74,7 @@ setup_config() {
         echo "⚙️  Setting up default configuration at $CONFIG_FILE"
         mkdir -p "$CONFIG_DIR"
         # Download default config
-        if ! curl -fsSL "$REPO_URL/udwall.conf.example" -o "$CONFIG_FILE"; then
+        if ! curl -fsSL "$REPO_URL/udwall.yaml.example" -o "$CONFIG_FILE"; then
              echo "⚠️  Warning: Failed to download default config. You may need to create one manually."
         fi
     else
