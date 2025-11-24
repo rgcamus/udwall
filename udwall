@@ -851,50 +851,70 @@ def backup_helper():
     firewall configuration files and live rule sets into it. This includes
     the `/etc/ufw` directory, `/etc/default/ufw`, and the output of
     `iptables-save` and `ip6tables-save`.
+
+    When run as root (sudo), creates both system-wide and user-local backups.
+    When run as non-root, creates only user-local backup in ~/.udwall/backups/.
     """
     try:
         # Format: 2025-11-05_20-30-00
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        is_root = os.geteuid() == 0
 
-        # 1. System-wide backup
-        main_backup_dir = SYSTEM_BACKUP_DIR
-        backup_path = os.path.join(main_backup_dir, timestamp)
+        backup_paths = []
+
+        # 1. System-wide backup (only if root)
+        if is_root:
+            main_backup_dir = SYSTEM_BACKUP_DIR
+            backup_path = os.path.join(main_backup_dir, timestamp)
+            backup_paths.append(backup_path)
+        else:
+            logging.info(
+                "Running without root privileges. Creating user-local backup only."
+            )
 
         # 2. User-local backup
         user_backup_path = None
-        sudo_user = os.environ.get("SUDO_USER")
-        if sudo_user:
-            try:
-                user_home = pwd.getpwnam(sudo_user).pw_dir
-                user_backup_dir = os.path.join(user_home, USER_BACKUP_SUBDIR)
-                user_backup_path = os.path.join(user_backup_dir, timestamp)
-            except KeyError:
-                logging.warning(
-                    f"Could not determine home directory for user {sudo_user}. Skipping user-local backup."
-                )
+        if is_root:
+            sudo_user = os.environ.get("SUDO_USER")
+            if sudo_user:
+                try:
+                    user_home = pwd.getpwnam(sudo_user).pw_dir
+                    user_backup_dir = os.path.join(user_home, USER_BACKUP_SUBDIR)
+                    user_backup_path = os.path.join(user_backup_dir, timestamp)
+                except KeyError:
+                    logging.warning(
+                        f"Could not determine home directory for user {sudo_user}. Skipping user-local backup."
+                    )
+        else:
+            # Non-root: use current user's home directory
+            user_home = os.path.expanduser("~")
+            user_backup_dir = os.path.join(user_home, USER_BACKUP_SUBDIR)
+            user_backup_path = os.path.join(user_backup_dir, timestamp)
 
-        backup_paths = [backup_path]
         if user_backup_path:
             backup_paths.append(user_backup_path)
+
+        if not backup_paths:
+            logging.error("No backup locations available.")
+            return False
 
         for path in backup_paths:
             ufw_backup_path = os.path.join(path, "ufw")
             iptables_backup_path = os.path.join(path, "iptable")
 
             # Create all directories
-            # We need root, which is already checked in main()
             os.makedirs(ufw_backup_path, exist_ok=True)
             os.makedirs(iptables_backup_path, exist_ok=True)
 
-    except PermissionError:
-        logging.critical(
-            f"Permission denied. Cannot create backup directory at {main_backup_dir}."
+    except PermissionError as e:
+        logging.error(f"Permission denied when creating backup directory: {e}")
+        logging.error(
+            "Try running with sudo for system-wide backup, or check directory permissions."
         )
-        logging.critical("Please ensure you are running this script with sudo.")
-        sys.exit(1)
+        return False
     except Exception as e:
         logging.critical(f"Error creating backup directories: {e}")
-        sys.exit(1)
+        return False
 
     all_successful = True
 
@@ -1468,10 +1488,18 @@ def main():
     # --- Setup Logging ---
 
     # --- Check for root privileges before anything else ---
-    # Allow help, version, and dry-run without root
-    if os.geteuid() != 0 and not any(
-        arg in sys.argv for arg in ["--help", "-h", "--version", "-v", "--dry-run"]
-    ):
+    # Allow help, version, dry-run, status, and backup without root
+    # (backup will create user-local backups when not run as root)
+    read_only_args = [
+        "--help",
+        "-h",
+        "--version",
+        "-v",
+        "--dry-run",
+        "--status",
+        "--backup",
+    ]
+    if os.geteuid() != 0 and not any(arg in sys.argv for arg in read_only_args):
         script_name = os.path.basename(sys.argv[0])
         print(f"❌ ERROR: You need to be root to run this script", file=sys.stderr)
         print(f"ℹ️  INFO: Use `sudo {script_name} <command>`", file=sys.stderr)
