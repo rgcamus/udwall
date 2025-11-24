@@ -44,4 +44,3 @@ rules:
     to: 22
     isDockerServed: false
     isEnabled: true
-

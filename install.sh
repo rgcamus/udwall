@@ -39,7 +39,7 @@ check_dependencies() {
         exit 1
     fi
     echo "✅ Dependencies found."
-    
+
     # Check for PyYAML
     if ! python3 -c "import yaml" &> /dev/null; then
         echo "⚠️  Warning: PyYAML (python3-yaml) not found."

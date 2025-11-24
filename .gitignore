@@ -39,6 +39,9 @@ env/
 *~
 .DS_Store
 
+# Pre-commit
+.pre-commit-config.yaml.swp
+
 # Debian Packaging
 debian/.debhelper/
 debian/debhelper-build-stamp

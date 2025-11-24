@@ -1,14 +1,21 @@
 #!/usr/bin/env python3
+"""udwall - Declarative UFW + Docker firewall management tool.
+
+This tool fixes the Docker security flaw where containers bypass UFW,
+and automates rule management using a single YAML configuration file.
+"""
 import argparse
+import datetime
+import logging
+import os
+import pwd
+import re
+import shlex
+import shutil
 import subprocess
 import sys
-import os
-import datetime
-import shutil
-import shlex
-import re
-import logging
-import pwd
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple, Union
 
 import yaml
 
@@ -83,7 +90,11 @@ COMMIT
 """
 
 
-def run_command(command_list, description, ignore_errors_containing=None):
+def run_command(
+    command_list: List[str],
+    description: str,
+    ignore_errors_containing: Optional[Union[str, List[str]]] = None,
+) -> bool:
     """
     Executes a shell command, logs its progress, and handles outcomes.
 
@@ -93,14 +104,14 @@ def run_command(command_list, description, ignore_errors_containing=None):
     It also includes an idempotency check to ignore specific, expected errors.
 
     Args:
-        command_list (list): The command and its arguments as a list of strings.
-        description (str): A human-readable description of the command's purpose.
-        ignore_errors_containing (str, optional): A substring to look for in
-            stderr. If found on a non-zero exit, the error is ignored, and the
-            function returns True. Defaults to None.
+        command_list: The command and its arguments as a list of strings.
+        description: A human-readable description of the command's purpose.
+        ignore_errors_containing: A substring to look for in stderr. If found on
+            a non-zero exit, the error is ignored, and the function returns True.
+            Can be a single string or a list of strings. Defaults to None.
 
     Returns:
-        bool: True if the command succeeded or the error was ignored, False otherwise.
+        True if the command succeeded or the error was ignored, False otherwise.
     """
     # Use shlex.join for a more accurate representation of the command,
     # though ' '.join is fine for simple logging.
@@ -164,13 +175,16 @@ def run_command(command_list, description, ignore_errors_containing=None):
         return False
 
 
-def check_ufw_installed():
+def check_ufw_installed() -> None:
     """
     Verifies if the UFW package is installed and exits if it's not.
 
     Uses `dpkg -l` to check for the presence of the 'ufw' package. This is
     a non-invasive check. If UFW is not found, it prints a helpful error
     message and terminates the script.
+
+    Raises:
+        SystemExit: If UFW is not installed.
     """
     try:
         subprocess.run(
@@ -185,23 +199,23 @@ def check_ufw_installed():
         sys.exit(1)
 
 
-def load_rules_from_file():
+def load_rules_from_file() -> List[Dict[str, Union[str, int, bool]]]:
     """
     Reads and parses the 'udwall.yaml' file to load firewall rules.
 
-    This function searches for 'udwall.conf' in the following order:
+    This function searches for 'udwall.yaml' in the following order:
     1. Current Working Directory
     2. The directory where this script is located
-    3. /etc/udwall/udwall.conf
+    3. /etc/udwall/udwall.yaml
 
     It expects the file to define a single variable, `rules`, which should be a
     list of rule dictionaries.
 
-    If the file is not found or a parsing error occurs, the script will print
-    an error message and exit.
-
     Returns:
-    list: The list of rule dictionaries loaded from the configuration file.
+        The list of rule dictionaries loaded from the configuration file.
+
+    Raises:
+        SystemExit: If the file is not found or a parsing error occurs.
     """
     possible_paths = [
         os.path.join(os.getcwd(), UDWALL_CONF_FILE),
@@ -235,7 +249,7 @@ def load_rules_from_file():
         sys.exit(1)
 
 
-def reload_ufw():
+def reload_ufw() -> None:
     """
     Reloads UFW to apply any pending changes to the firewall rules.
 
@@ -253,7 +267,7 @@ def reload_ufw():
 # --- UTILITY & HELPER FUNCTIONS ---
 
 
-def enable_ufw():
+def enable_ufw() -> bool:
     """
     Ensures UFW is properly enabled and configured for basic access.
 
@@ -265,6 +279,12 @@ def enable_ufw():
 
     The script will exit if any of these steps fail, as a functioning UFW
     is critical for subsequent operations.
+
+    Returns:
+        True if UFW is active after the function completes, False otherwise.
+
+    Raises:
+        SystemExit: If UFW cannot be enabled or checked.
     """
     # --- 1. Check UFW Status ---
     status_command = ["sudo", UFW_CMD, "status"]
@@ -311,7 +331,9 @@ def enable_ufw():
     return "Status: active" in status_result.stdout
 
 
-def ensure_docker_rules_in_file(rules_file_path, rules_block):
+def ensure_docker_rules_in_file(
+    rules_file_path: str, rules_block: str
+) -> Tuple[bool, str]:
     """
     Ensures the Docker-specific iptables rules are present in a given UFW rules file.
 
@@ -321,10 +343,14 @@ def ensure_docker_rules_in_file(rules_file_path, rules_block):
     If the block is missing, it inserts it just before the final 'COMMIT' line of the `*filter`
     table. This is more robust than appending. The check is idempotent.
 
+    Args:
+        rules_file_path: Path to the UFW rules file (e.g., '/etc/ufw/after.rules').
+        rules_block: The block of iptables rules to insert.
+
     Returns:
-        tuple: A tuple (bool, str) indicating:
-               - success (bool): True if the configuration is correct, False otherwise.
-               - status (str): "present", "added", or "failed".
+        A tuple (success, status) where:
+            - success: True if the configuration is correct, False otherwise.
+            - status: One of "present", "added", "not_present", or "failed".
     """
     logging.info(f"Checking {rules_file_path} for Docker configuration...")
     try:
@@ -383,7 +409,7 @@ def ensure_docker_rules_in_file(rules_file_path, rules_block):
         return (False, "failed")
 
 
-def generate_ufw_command(rule):
+def generate_ufw_command(rule: Dict[str, Union[str, int, bool]]) -> str:
     """
     Constructs a UFW command string from a structured rule dictionary.
 
@@ -393,15 +419,16 @@ def generate_ufw_command(rule):
     forwarding.
 
     Args:
-        rule (dict): A dictionary describing the rule. Expected keys include:
-            'from' (str): The source IP or 'any'.
-            'connectionType' (str): 'tcp' or 'udp'.
-            'to' (str or int): The destination port, range, or service name.
-            'isDockerServed' (bool): True if it's a Docker 'route' rule.
-            'isEnabled' (bool): True to generate an 'allow' command, False
-                                for a 'delete allow' command.
+        rule: A dictionary describing the rule. Expected keys include:
+            - 'from': The source IP or 'any'.
+            - 'connectionType': 'tcp' or 'udp'.
+            - 'to': The destination port, range, or service name.
+            - 'isDockerServed': True if it's a Docker 'route' rule.
+            - 'isEnabled': True to generate an 'allow' command, False
+                          for a 'delete allow' command.
+
     Returns:
-        str: The fully formed `sudo ufw` command string.
+        The fully formed `sudo ufw` command string.
     """
     src = rule.get("from")
     proto = rule.get("connectionType")
@@ -457,20 +484,21 @@ def dry_run_rules():
         logging.info(f"Rule #{i} {status}: {command_str}")
 
 
-def fetch_after_rules(rules_file_path):
+def fetch_after_rules(
+    rules_file_path: str,
+) -> Tuple[Optional[List[str]], Optional[List[str]], bool]:
     """
     Reads a UFW rules file and extracts the 'UFW AND DOCKER' block.
 
     Args:
-        rules_file_path (str): The absolute path to the rules file (e.g.,
+        rules_file_path: The absolute path to the rules file (e.g.,
             '/etc/ufw/after.rules').
 
     Returns:
-        tuple: A tuple containing:
-        - block_lines (list): The lines of text from *inside* the block.
-        - all_file_lines (list): *All* lines from the original file as a list
-          of strings.
-        - found_block (bool): True if the start/end markers were found.
+        A tuple containing:
+            - block_lines: The lines of text from *inside* the block.
+            - all_file_lines: *All* lines from the original file as a list of strings.
+            - found_block: True if the start/end markers were found.
         Returns (None, None, False) on a critical read error.
     """
     start_marker = "# BEGIN UFW AND DOCKER"
@@ -508,7 +536,9 @@ def fetch_after_rules(rules_file_path):
     return (block_lines, all_file_lines, found_block)
 
 
-def parse_ufw_docker_rules(block_lines):
+def parse_ufw_docker_rules(
+    block_lines: List[str],
+) -> Tuple[List[Tuple[str, List[str]]], List[str]]:
     """
     Parses iptables rules from a 'UFW AND DOCKER' block.
 
@@ -517,10 +547,12 @@ def parse_ufw_docker_rules(block_lines):
     and custom chains to be flushed and deleted (`:`).
 
     Args:
-        block_lines (list): The lines of text from *inside* the block.
+        block_lines: The lines of text from *inside* the block.
 
     Returns:
-        tuple: A tuple containing (rules_to_delete, chains_to_delete).
+        A tuple containing (rules_to_delete, chains_to_delete) where:
+            - rules_to_delete: List of tuples (chain_name, rule_spec_list)
+            - chains_to_delete: List of chain names to delete
     """
     rules_to_delete = []  # e.g., ('DOCKER-USER', ['-j', 'ufw-user-forward', ...])
     chains_to_delete = []  # e.g., 'ufw-user-forward'
@@ -565,8 +597,10 @@ def parse_ufw_docker_rules(block_lines):
 
 
 def remove_ufw_docker_iptable_rules(
-    rules_to_delete, chains_to_delete, iptables_command
-):
+    rules_to_delete: List[Tuple[str, List[str]]],
+    chains_to_delete: List[str],
+    iptables_command: str,
+) -> bool:
     """
     Removes live iptables rules and chains related to the ufw-docker integration.
 
@@ -578,9 +612,14 @@ def remove_ufw_docker_iptable_rules(
     It uses `ignore_errors_containing` to make the operations idempotent,
     meaning it won't fail if a rule or chain has already been removed.
 
+    Args:
+        rules_to_delete: List of tuples containing (chain_name, rule_spec_list).
+        chains_to_delete: List of custom chain names to flush and delete.
+        iptables_command: The iptables command to use ('iptables' or 'ip6tables').
+
     Returns:
-        bool: True if all commands succeeded or were ignored idempotently,
-              False if any unexpected error occurred.
+        True if all commands succeeded or were ignored idempotently,
+        False if any unexpected error occurred.
     """
     all_successful = True
 
