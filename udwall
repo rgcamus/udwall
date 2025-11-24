@@ -12,7 +12,7 @@ import pwd
 
 import yaml
 
-__version__ = "0.0.5"
+__version__ = "0.0.7"
 
 UDWALL_CONF_FILE = "udwall.yaml"
 UDWALL_SYSTEM_CONF_PATH = "/etc/udwall/udwall.yaml"

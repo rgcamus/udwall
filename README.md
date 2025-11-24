@@ -192,6 +192,48 @@ sudo udwall --disable
 | `sudo udwall --version` | **Version**: Displays the installed version of `udwall`.                                                          |
 | `sudo udwall --help`    | **Help**: Shows the help message and available options.                                                           |
 
+## Building the Debian Package
+
+If you want to build the `.deb` package from source:
+
+### Prerequisites
+
+Install the required build dependencies:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y debhelper
+```
+
+### Build Steps
+
+1. Clone the repository:
+
+```bash
+git clone https://github.com/rgcamus/udwall.git
+cd udwall
+```
+
+2. Build the package:
+
+```bash
+dpkg-buildpackage -us -uc -b
+```
+
+This will create the `.deb` package in the parent directory (`../udwall_*.deb`).
+
+### Installing the Built Package
+
+```bash
+sudo dpkg -i ../udwall_*.deb
+```
+
+If there are dependency issues, run:
+
+```bash
+sudo apt-get install -f
+```
+
 ## 🛡️ Credits
 
 The core `iptables` logic to fix the Docker/UFW security flaw is based on the work by [chaifeng/ufw-docker](https://github.com/chaifeng/ufw-docker). `udwall` extends this by adding declarative state management.

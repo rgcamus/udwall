@@ -1,0 +1,15 @@
+Source: udwall
+Section: net
+Priority: optional
+Maintainer: rgcamus <rgcamus@gmail.com>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.6.2
+Homepage: https://github.com/rgcamus/udwall
+
+Package: udwall
+Architecture: all
+Depends: ${misc:Depends}, python3, ufw, curl, iptables, python3-yaml
+Description: A Single-Command Tool to Make UFW Docker-Compatible
+  udwall is a declarative tool to manage UFW and Docker firewall rules using a
+  single YAML configuration file. It fixes the Docker security flaw where
+  containers bypass UFW.
